@@ -2,6 +2,7 @@ import { stripe } from "@/lib/stripe"
 import { headers } from "next/headers"
 import Stripe from "stripe"
 import prisma from "@/app/lib/db";
+import { getSubscriptionPeriodStart, getSubscriptionPeriodEnd, getInvoiceSubscription } from '../../stripe/stripeSubscriptionPeriod';
 
 
 export async function POST(req: Request) {
@@ -41,8 +42,8 @@ export async function POST(req: Request) {
         data: {
           stripeSubscriptionId: subscription.id,
           userId: user.id,
-          currentPeriodStart: subscription.current_period_start,
-          currentPeriodEnd: subscription.current_period_end,
+          currentPeriodStart: (getSubscriptionPeriodStart(subscription, (items) => items[0])),
+          currentPeriodEnd: (getSubscriptionPeriodEnd(subscription, (items) => items[0])),
           status: subscription.status,
           planId: subscription.items.data[0].plan.id,
           invterval: String(subscription.items.data[0].plan.interval),
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
   
     if (event.type === "invoice.payment_succeeded") {
       const subscription = await stripe.subscriptions.retrieve(
-        session.subscription as string
+        (getInvoiceSubscription(session)) as string
       );
   
       await prisma.subscription.update({
@@ -61,8 +62,8 @@ export async function POST(req: Request) {
         },
         data: {
           planId: subscription.items.data[0].price.id,
-          currentPeriodStart: subscription.current_period_start,
-          currentPeriodEnd: subscription.current_period_end,
+          currentPeriodStart: (getSubscriptionPeriodStart(subscription, (items) => items[0])),
+          currentPeriodEnd: (getSubscriptionPeriodEnd(subscription, (items) => items[0])),
           status: subscription.status,
         },
       });
